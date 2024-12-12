@@ -1,18 +1,6 @@
 <template>
-  <div class="search-page">
-    <h1>Tìm kiếm</h1>
-    <input v-model="searchQuery" type="text" placeholder="Nhập từ khóa..." />
-    <button @click="performSearch">Tìm kiếm</button>
+  <div class="">
 
-    <div v-if="results.length">
-      <h2>Kết quả tìm kiếm:</h2>
-      <ul>
-        <li v-for="(result, index) in results" :key="index">{{ result }}</li>
-      </ul>
-    </div>
-    <div v-else-if="searched">
-      <p>Không tìm thấy kết quả nào.</p>
-    </div>
   </div>
 </template>
 
@@ -26,28 +14,35 @@ export default {
     };
   },
   methods: {
-    performSearch() {
+    async performSearch() {
+      if (!this.searchQuery) {
+        this.results = null;
+        this.searched = false;
+        return;
+      }
+
       this.searched = true;
-      // Giả lập kết quả tìm kiếm
-      const allResults = ['Từ khóa 1', 'Từ khóa 2', 'Từ khóa 3'];
-      this.results = allResults.filter(item =>
-          item.toLowerCase().includes(this.searchQuery.toLowerCase())
-      );
+
+      try {
+        const response = await fetch(`http://localhost:8080/hello?name=${encodeURIComponent(Llấy từ pram)}`);
+
+        if (response.status === 404) {
+          this.results = [];
+        } else if (response.ok) {
+          const data = await response.json();
+          this.results = [data];
+        } else {
+          throw new Error('Lỗi không xác định');
+        }
+      } catch (error) {
+        console.error('Lỗi khi tìm kiếm:', error);
+        this.results = [];
+      }
     },
   },
 };
 </script>
 
 <style scoped>
-.search-page {
-  text-align: center;
-  margin-top: 50px;
-}
-input {
-  padding: 10px;
-  margin-right: 10px;
-}
-button {
-  padding: 10px;
-}
+
 </style>
