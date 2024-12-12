@@ -1,18 +1,20 @@
 <template>
   <div id="app">
-    <SearchPage />
+    <nav>
+      <router-link to="/">Tìm Kiếm</router-link>
+      <router-link to="/calculate">Máy Tính</router-link>
+    </nav>
+    <router-view />
   </div>
 </template>
 
 <script>
-import SearchPage from './components/SearchPage.vue';
-
 export default {
-  components: {
-    SearchPage,
-  },
 };
 </script>
 
 <style>
+nav {
+  margin-bottom: 20px;
+}
 </style>
