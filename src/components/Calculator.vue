@@ -34,7 +34,7 @@ export default {
     return {
       firstNumberStr: '',
       secondNumberStr: '',
-      operator: 'add',
+      operator: '%2B',
       result: null,
       errors: {},
     };
@@ -71,6 +71,7 @@ div {
   border-radius: 8px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   background-color: #f9f9f9;
+  margin-bottom: 20px;
 }
 
 h1 {
