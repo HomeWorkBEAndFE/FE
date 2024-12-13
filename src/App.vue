@@ -1,8 +1,10 @@
 <template>
   <div id="app">
     <nav>
-      <router-link to="/">Tìm Kiếm</router-link>
-      <router-link to="/calculate">Máy Tính</router-link>
+      <router-link to="/">Tìm Kiếm - </router-link>
+      <router-link to="/calculate">Máy Tính - </router-link>
+
+      <router-link to="/employee">Nhân viên</router-link>
     </nav>
     <router-view />
   </div>
