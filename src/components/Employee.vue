@@ -1,6 +1,40 @@
 <template>
   <div class="employee-list">
     <h1>Danh sách nhân viên</h1>
+
+    <div class="search-form">
+      <label for="searchName">Tên:</label>
+      <input v-model="searchForm.name" type="text" id="searchName" placeholder="Tìm kiếm theo tên" />
+
+      <label for="dobFrom">Ngày sinh từ:</label>
+      <input v-model="searchForm.dobFrom" type="date" id="dobFrom" />
+
+      <label for="dobTo">Ngày sinh đến:</label>
+      <input v-model="searchForm.dobTo" type="date" id="dobTo" />
+
+      <label for="gender">Giới tính:</label>
+      <select v-model="searchForm.gender" id="gender">
+        <option value="">Tất cả</option>
+        <option value="Male">Nam</option>
+        <option value="Female">Nữ</option>
+      </select>
+
+      <label for="salaryRange">Lương:</label>
+      <input v-model="searchForm.salaryRange" type="text" id="salaryRange" placeholder="Tìm kiếm theo lương" />
+
+      <label for="phone">Điện thoại:</label>
+      <input v-model="searchForm.phone" type="text" id="phone" placeholder="Tìm kiếm theo điện thoại" />
+
+      <label for="phone">Bộ phận:</label>
+      <select v-model="searchForm.departmentId" id="department">
+        <option v-for="department in departments" :key="department.id" :value="department.id">
+          {{ department.name }}
+        </option>
+      </select>
+
+      <button @click="searchEmployees">Tìm kiếm</button>
+    </div>
+
     <table>
       <thead>
       <tr>
@@ -10,17 +44,19 @@
         <th>Giới tính</th>
         <th>Lương</th>
         <th>Điện thoại</th>
+        <th>Bộ phận</th>
         <th>Thao tác</th>
       </tr>
       </thead>
       <tbody>
-      <tr v-for="(employee, index) in employees" :key="employee.id">
+      <tr v-for="(employee, index) in employees" :key="employee.id" >
         <td>{{ index + 1 }}</td>
         <td>{{ employee.name }}</td>
         <td>{{ employee.dob }}</td>
         <td>{{ employee.gender }}</td>
         <td>{{ employee.salary.toLocaleString() }} VNĐ</td>
         <td>{{ employee.phone }}</td>
+        <td>{{employee.departmentName}}</td>
         <td>
           <button class="view-button" @click="viewEmployee(employee)">Xem</button>
           <button class="edit-button" @click="editEmployee(employee)">Cập nhật</button>
@@ -31,24 +67,36 @@
     </table>
     <button class="add-button" @click="openAddModal">Thêm Mới</button>
 
-    <!-- Modal thêm và cập nhật nhân viên -->
     <div v-if="showModal" class="modal">
       <div class="modal-content">
         <h2>{{ isEditing ? 'Cập nhật nhân viên' : 'Thêm nhân viên' }}</h2>
-        <label>Tên:</label>
-        <input v-model="employeeForm.name" type="text" required />
-        <label>Ngày sinh:</label>
-        <input v-model="employeeForm.dob" type="date" required />
-        <label>Giới tính:</label>
-        <select v-model="employeeForm.gender">
+        <label for="name">Tên:</label>
+        <input v-model="employeeForm.name" type="text" id="name" required />
+
+        <label for="dob">Ngày sinh:</label>
+        <input v-model="employeeForm.dob" type="date" id="dob" required />
+
+        <label for="gender">Giới tính:</label>
+        <select v-model="employeeForm.gender" id="gender">
           <option value="Male">Nam</option>
           <option value="Female">Nữ</option>
         </select>
-        <label>Lương:</label>
-        <input v-model="employeeForm.salary" type="number" required />
-        <label>Điện thoại:</label>
-        <input v-model="employeeForm.phone" type="text" required />
-        <button @click="isEditing ? updateEmployee() : addEmployee()">{{ isEditing ? 'Cập nhật' : 'Thêm' }}</button>
+
+        <label for="salary">Lương:</label>
+        <input v-model="employeeForm.salary" type="number" id="salary" required />
+
+        <label for="phone">Điện thoại:</label>
+        <input v-model="employeeForm.phone" type="text" id="phone" required />
+
+        <label for="department">Bộ phận:</label>
+        <select v-model="employeeForm.departmentId" id="department">
+          <option v-for="department in departments" :key="department.id" :value="department.id">
+            {{ department.name }}
+          </option>
+        </select>
+        <button @click="isEditing ? updateEmployee() : addEmployee()">
+          {{ isEditing ? 'Cập nhật' : 'Thêm' }}
+        </button>
         <button @click="closeModal">Đóng</button>
       </div>
     </div>
@@ -88,58 +136,138 @@ export default {
       isEditing: false,
       selectedEmployee: {},
       employeeForm: {
+        departmentId: 1,
         name: '',
         dob: '',
         gender: 'Male',
         salary: 0,
-        phone: '',
+        phone: '', // Giá trị mặc định cho departmentId
       },
+      departments: [
+      ],
       confirmDeleteId: null,
+      searchForm: {
+        name: '',
+        dobFrom: '',
+        dobTo: '',
+        gender: '',
+        salaryRange: '',
+        phone: '',
+        departmentId:1,
+      },
     };
   },
   methods: {
     async fetchEmployees() {
-      const response = await fetch('http://localhost:8080/api/employees');
-      this.employees = await response.json();
+      try {
+        const response = await fetch('http://localhost:8080/api/employees');
+        const responseData = await response.json();
+        console.log(responseData);
+        if (Array.isArray(responseData.data)) {
+          this.employees = responseData.data.map(item => {
+            const employee = item.employee;
+            const department = item.department;
+
+            return {
+              ...employee,
+              salary: Number(employee.salary),
+              departmentName: department ? department.name : 'Không xác định'
+            };
+          });
+        }else {
+          console.error('Dữ liệu không có trường "data" hoặc "data" không phải là mảng');
+        }
+      } catch (error) {
+        console.error('Lỗi khi lấy dữ liệu nhân viên:', error);
+      }
+      try {
+        const responseDepartment = await fetch('http://localhost:8080/api/department');
+        const responseDataDepartment = await responseDepartment.json();
+        this.departments = responseDataDepartment.data.map(department => ({
+          ...department,
+        }));
+        console.log(this.departments)// Cập nhật danh sách bộ phận
+      } catch (error) {
+        console.error("Error fetching departments:", error);
+      }
     },
     async addEmployee() {
-      await fetch('http://localhost:8080/api/employees', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ ...this.employeeForm }), // Gửi dữ liệu thêm
-      });
-      this.closeModal();
-      this.fetchEmployees();
+      try {
+        await fetch('http://localhost:8080/api/employees', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(this.employeeForm),
+        });
+        this.closeModal();
+        this.fetchEmployees();
+      } catch (error) {
+        console.error('Failed to add employee:', error);
+      }
     },
     async updateEmployee() {
-      await fetch(`http://localhost:8080/api/employees/update/${this.selectedEmployee.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ ...this.employeeForm, id: this.selectedEmployee.id }),
-      });
-      this.closeModal();
-      this.fetchEmployees();
+
+      const { departmentName, ...dataToUpdate } = this.employeeForm;
+      console.log(dataToUpdate)
+
+      try {
+        await fetch(`http://localhost:8080/api/employees/update/${this.selectedEmployee.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(dataToUpdate),
+        });
+        this.closeModal();
+        this.fetchEmployees();
+      } catch (error) {
+        console.error('Failed to update employee:', error);
+      }
     },
     async deleteEmployee(id) {
-      await fetch(`http://localhost:8080/api/employees/delete/${id}`, {
-        method: 'DELETE',
-      });
-      this.closeConfirmDelete();
-      this.fetchEmployees();
+      try {
+        await fetch(`http://localhost:8080/api/employees/delete/${id}`, {
+          method: 'DELETE',
+        });
+        this.closeConfirmDelete();
+        this.fetchEmployees();
+      } catch (error) {
+        console.error('Failed to delete employee:', error);
+      }
+    },
+    async searchEmployees() {
+      try {
+        const params = new URLSearchParams(this.searchForm).toString();
+        const response = await fetch(`http://localhost:8080/api/employees/search?${params}`);
+        const responseData = await response.json();
+        console.log(responseData)
+          this.employees = responseData.data.map(item => {
+            const employee = item.employee;
+            const department = item.department;
+
+            return {
+              ...employee,
+              salary: Number(employee.salary),
+              departmentName: department ? department.name : 'Không xác định'
+            };
+          });
+        }catch (error) {
+        console.error('Lỗi khi tìm kiếm nhân viên:', error);
+      }
     },
     openAddModal() {
       this.isEditing = false;
-      this.employeeForm = { name: '', dob: '', gender: 'Male', salary: 0, phone: '' };
+      this.employeeForm = { name: '', dob: '', gender: 'Male', salary: 0, phone: '' ,departmentId: 1,};
       this.showModal = true;
     },
     editEmployee(employee) {
+      this.employeeForm = { name: '', dob: '', gender: 'Male', salary: 0, phone: '' ,departmentId: employee.departmentId};
+      this.showModal = true;
       this.isEditing = true;
       this.selectedEmployee = employee;
       this.employeeForm = { ...employee };
+      console.log(this.employeeForm);
       this.showModal = true;
     },
     viewEmployee(employee) {
@@ -148,7 +276,6 @@ export default {
     },
     confirmDelete(id) {
       this.confirmDeleteId = id;
-      console.log(this.confirmDeleteId);
       this.showConfirmDelete = true;
     },
     closeModal() {
@@ -170,9 +297,10 @@ export default {
 };
 </script>
 
+
 <style scoped>
 .employee-list {
-  max-width: 800px;
+  max-width: 1600px;
   margin: auto;
   padding: 20px;
   border: 1px solid #ccc;
@@ -333,4 +461,175 @@ button:last-of-type {
     transform: scale(1);
   }
 }
+.search-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding: 10px;
+  border-radius: 8px;
+  background-color: #f1f1f1;
+}
+
+.search-container input[type="text"],
+.search-container input[type="date"],
+.search-container select {
+  padding: 10px;
+  margin-right: 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.search-container button {
+  padding: 10px 15px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.search-container button:hover {
+  opacity: 0.9;
+}
+
+.search-container label {
+  font-weight: bold;
+  margin-right: 10px;
+  color: #555;
+}
+
+.modal-content h2 {
+  margin-bottom: 20px;
+  text-align: center;
+  color: #333;
+  font-size: 1.5em;
+  font-weight: bold;
+}
+
+.modal-content input[type="text"],
+.modal-content input[type="date"],
+.modal-content input[type="number"],
+.modal-content select {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 15px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  box-sizing: border-box;
+  transition: border-color 0.2s;
+}
+
+.modal-content input:focus,
+.modal-content select:focus {
+  border-color: #4CAF50;
+  outline: none;
+}
+
+button {
+  padding: 10px 15px;
+  margin: 10px 5px 0;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+button:hover {
+  opacity: 0.9;
+}
+
+button:first-of-type {
+  background-color: #4CAF50;
+  color: white;
+}
+
+button:last-of-type {
+  background-color: #f44336;
+  color: white;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.search-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding: 10px;
+  border-radius: 8px;
+  background-color: #f1f1f1;
+}
+
+.search-container input[type="text"],
+.search-container input[type="date"],
+.search-container select {
+  padding: 10px;
+  margin-right: 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.search-container button {
+  padding: 10px 15px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.search-container button:hover {
+  opacity: 0.9;
+}
+
+.search-form {
+  margin-bottom: 20px;
+}
+
+.search-form label {
+  font-size: 14px;
+  margin-bottom: 5px;
+  color: #555;
+}
+
+.search-form input[type="text"],
+.search-form input[type="date"],
+.search-form select {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 10px;
+  border-radius: 6px;
+  border: 1px solid #ddd;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.search-form button {
+  padding: 10px 15px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.search-form button:hover {
+  opacity: 0.9;
+}
+
 </style>
