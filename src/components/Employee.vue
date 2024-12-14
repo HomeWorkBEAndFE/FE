@@ -25,8 +25,9 @@
       <label for="phone">Điện thoại:</label>
       <input v-model="searchForm.phone" type="text" id="phone" placeholder="Tìm kiếm theo điện thoại" />
 
-      <label for="phone">Bộ phận:</label>
+      <label for="department">Bộ phận:</label>
       <select v-model="searchForm.departmentId" id="department">
+        <option value="">Tất cả</option>
         <option v-for="department in departments" :key="department.id" :value="department.id">
           {{ department.name }}
         </option>
@@ -153,7 +154,7 @@ export default {
         gender: '',
         salaryRange: '',
         phone: '',
-        departmentId:1,
+        departmentId:'',
       },
     };
   },
