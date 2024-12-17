@@ -1,3 +1,4 @@
+
 <template>
   <div class="employee-list">
     <h1>Danh sách nhân viên</h1>
@@ -35,7 +36,9 @@
 
       <button @click="searchEmployees">Tìm kiếm</button>
     </div>
-
+    <div id="add-buttont">
+        <button class="add-button" @click="openAddModal" >Thêm Mới</button>
+    </div>
     <table>
       <thead>
       <tr>
@@ -72,7 +75,6 @@
       <span>Trang {{ currentPage + 1 }}</span>
       <button @click="changePage(currentPage + 1)" :disabled="currentPage === totalPages - 1">Sau</button>
     </div>
-    <button class="add-button" @click="openAddModal">Thêm Mới</button>
 
     <div v-if="showModal" class="modal">
       <div class="modal-content">
@@ -133,6 +135,8 @@
 </template>
 
 <script>
+import { fetchData } from '@/utils/api.js';
+import { transformEmployeeData } from '@/utils/transformData';
 export default {
   data() {
     return {
@@ -168,123 +172,64 @@ export default {
   },
   methods: {
     async fetchEmployees(page = 0, size = 1) {
-      try {
-        const response = await fetch(`http://localhost:8080/api/employees?page=${page}&size=${size}`);
-        const responseData = await response.json();
-        console.log(responseData.data.content[0]);
-        if (responseData.data.content.length > 0) {
-          this.employees = responseData.data.content.map(item => {
-            console.log(item);
-            const employee = item.employee;
-            const department = item.department;
-
-            return {
-              ...employee,
-              salary: Number(employee.salary),
-              departmentName: department ? department.name : 'Không xác định'
-            };
-          });
-          console.log(responseData.data.totalPages)
-          this.totalPages = Math.ceil(responseData.data.totalPages / size);
-        }else {
-          console.error('Dữ liệu không có trường "data" hoặc "data" không phải là mảng');
+        const {data, error} = await fetchData(`http://localhost:8080/api/employees?page=${page}&size=${size}`,'GET');
+        if (error) {
+          this.error = error;
         }
-      } catch (error) {
-        console.error('Lỗi khi lấy dữ liệu nhân viên:', error);
-      }
+        else {
+          const { employees, totalPages } = transformEmployeeData(data.data, size);
+          this.employees = employees;
+          this.totalPages = totalPages;
+        }
       try {
-        const responseDepartment = await fetch('http://localhost:8080/api/department');
-        const responseDataDepartment = await responseDepartment.json();
-        this.departments = responseDataDepartment.data.map(department => ({
+        const { data, error } = await fetchData('http://localhost:8080/api/department', "GET");
+        this.departments = data.data.map(department => ({
           ...department,
         }));
-        console.log(this.departments)// Cập nhật danh sách bộ phận
+       if (error) this.error = error;
       } catch (error) {
         console.error("Error fetching departments:", error);
       }
     },
+
+    async handleEmployeeApi(method, url, data = null) {
+      const {data: responseData, error} = await fetchData(url, method, data);
+      if (error) {
+        this.error = error;
+        return;
+      }
+      this.closeModal();
+      this.fetchEmployees();
+    },
+
     async addEmployee() {
-      console.log(this.employeeForm)
-      try {
-        await fetch(`http://localhost:8080/api/employees`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(this.employeeForm),
-        });
-        this.closeModal();
-        this.fetchEmployees();
-      } catch (error) {
-        console.error('Failed to add employee:', error);
-      }
+      await this.handleEmployeeApi('POST', `http://localhost:8080/api/employees`, this.employeeForm);
     },
+
     async updateEmployee() {
-
       const { departmentName, ...dataToUpdate } = this.employeeForm;
-      console.log(dataToUpdate)
-
-      try {
-        await fetch(`http://localhost:8080/api/employees/update/${this.selectedEmployee.id}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(dataToUpdate),
-        });
-        this.closeModal();
-        this.fetchEmployees();
-      } catch (error) {
-        console.error('Failed to update employee:', error);
-      }
+      await this.handleEmployeeApi('PUT', `http://localhost:8080/api/employees/update/${this.selectedEmployee.id}`, dataToUpdate);
     },
+
     async deleteEmployee(id) {
-      try {
-        await fetch(`http://localhost:8080/api/employees/delete/${id}`, {
-          method: 'DELETE',
-        });
-        this.closeConfirmDelete();
-        this.fetchEmployees();
-      } catch (error) {
-        console.error('Failed to delete employee:', error);
-      }
+      await this.handleEmployeeApi('DELETE', `http://localhost:8080/api/employees/update/${id}`);
     },
-    async searchEmployees(page = 0, size = 1) {
-      try {
-        const params = new URLSearchParams(this.searchForm).toString();
-        console.log(params);
-        const response = await fetch(`http://localhost:8080/api/employees/search?${params}&page=${page}&size=${size}`);
-        console.log(response);
-        const responseData = await response.json();
-        console.log(responseData)
-        if (responseData.data.content.length > 0) {
-          this.employees = responseData.data.content.map(item => {
-            const employee = item.employee;
-            const department = item.department;
 
-            return {
-              id: employee.id,
-              name: employee.name,
-              dob: employee.dob,
-              gender: employee.gender,
-              salary: Number(employee.salary),
-              phone: employee.phone,
-              departmentName: department ? department.name : 'Không xác định',
-              departmentId: department ? department.id : null
-            };
-          });
-          this.totalPages = Math.ceil(responseData.data.totalItems / size);
-        } else {
-          console.warn('Dữ liệu trả về không phải mảng.');
+    async searchEmployees(page = 0, size = 1) {
+        const params = new URLSearchParams(this.searchForm).toString();
+        const { data, error } = await fetchData(`http://localhost:8080/api/employees/search?${params}&page=${0}&size=${size}`, 'GET');
+        if (error) {
+          this.error = error;
+          return;
         }
-        }catch (error) {
-        console.error('Lỗi khi tìm kiếm nhân viên:', error);
-      }
+        const { employees, totalPages } = transformEmployeeData(data.data, size);
+        this.employees = employees;
+        this.totalPages = totalPages;
     },
     changePage(newPage) {
       if (newPage >= 0 && newPage < this.totalPages) {
         this.currentPage = newPage;
-        this.fetchEmployees(this.currentPage, this.size);  // Tải lại dữ liệu cho trang mới
+        this.fetchEmployees(this.currentPage, this.size);
       }
     },
     openAddModal() {
@@ -330,6 +275,12 @@ export default {
 
 
 <style scoped>
+#add-buttont{
+  display: flex;
+  justify-content: end;
+}
+
+
 .employee-list {
   max-width: 1600px;
   margin: auto;
