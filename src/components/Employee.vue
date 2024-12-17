@@ -51,7 +51,7 @@
       </thead>
       <tbody>
       <tr v-for="(employee, index) in employees" :key="employee.id" >
-        <td>{{ index + 1 }}</td>
+        <td>{{ employee.id }}</td>
         <td>{{ employee.name }}</td>
         <td>{{ employee.dob }}</td>
         <td>{{ employee.gender }}</td>
@@ -66,6 +66,12 @@
       </tr>
       </tbody>
     </table>
+
+    <div class="pagination">
+      <button @click="changePage(currentPage - 1)" :disabled="currentPage === 0">Trước</button>
+      <span>Trang {{ currentPage + 1 }}</span>
+      <button @click="changePage(currentPage + 1)" :disabled="currentPage === totalPages - 1">Sau</button>
+    </div>
     <button class="add-button" @click="openAddModal">Thêm Mới</button>
 
     <div v-if="showModal" class="modal">
@@ -142,8 +148,10 @@ export default {
         dob: '',
         gender: 'Male',
         salary: 0,
-        phone: '', // Giá trị mặc định cho departmentId
+        phone: '',
       },
+      currentPage: 0,
+      totalPages: 1,
       departments: [
       ],
       confirmDeleteId: null,
@@ -159,13 +167,14 @@ export default {
     };
   },
   methods: {
-    async fetchEmployees() {
+    async fetchEmployees(page = 0, size = 1) {
       try {
-        const response = await fetch('http://localhost:8080/api/employees');
+        const response = await fetch(`http://localhost:8080/api/employees?page=${page}&size=${size}`);
         const responseData = await response.json();
-        console.log(responseData);
-        if (Array.isArray(responseData.data)) {
-          this.employees = responseData.data.map(item => {
+        console.log(responseData.data.content[0]);
+        if (responseData.data.content.length > 0) {
+          this.employees = responseData.data.content.map(item => {
+            console.log(item);
             const employee = item.employee;
             const department = item.department;
 
@@ -175,6 +184,8 @@ export default {
               departmentName: department ? department.name : 'Không xác định'
             };
           });
+          console.log(responseData.data.totalPages)
+          this.totalPages = Math.ceil(responseData.data.totalPages / size);
         }else {
           console.error('Dữ liệu không có trường "data" hoặc "data" không phải là mảng');
         }
@@ -193,8 +204,9 @@ export default {
       }
     },
     async addEmployee() {
+      console.log(this.employeeForm)
       try {
-        await fetch('http://localhost:8080/api/employees', {
+        await fetch(`http://localhost:8080/api/employees`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -237,24 +249,42 @@ export default {
         console.error('Failed to delete employee:', error);
       }
     },
-    async searchEmployees() {
+    async searchEmployees(page = 0, size = 1) {
       try {
         const params = new URLSearchParams(this.searchForm).toString();
-        const response = await fetch(`http://localhost:8080/api/employees/search?${params}`);
+        console.log(params);
+        const response = await fetch(`http://localhost:8080/api/employees/search?${params}&page=${page}&size=${size}`);
+        console.log(response);
         const responseData = await response.json();
         console.log(responseData)
-          this.employees = responseData.data.map(item => {
+        if (responseData.data.content.length > 0) {
+          this.employees = responseData.data.content.map(item => {
             const employee = item.employee;
             const department = item.department;
 
             return {
-              ...employee,
+              id: employee.id,
+              name: employee.name,
+              dob: employee.dob,
+              gender: employee.gender,
               salary: Number(employee.salary),
-              departmentName: department ? department.name : 'Không xác định'
+              phone: employee.phone,
+              departmentName: department ? department.name : 'Không xác định',
+              departmentId: department ? department.id : null
             };
           });
+          this.totalPages = Math.ceil(responseData.data.totalItems / size);
+        } else {
+          console.warn('Dữ liệu trả về không phải mảng.');
+        }
         }catch (error) {
         console.error('Lỗi khi tìm kiếm nhân viên:', error);
+      }
+    },
+    changePage(newPage) {
+      if (newPage >= 0 && newPage < this.totalPages) {
+        this.currentPage = newPage;
+        this.fetchEmployees(this.currentPage, this.size);  // Tải lại dữ liệu cho trang mới
       }
     },
     openAddModal() {
